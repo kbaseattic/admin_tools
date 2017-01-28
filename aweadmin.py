@@ -24,12 +24,13 @@ def list_clients(baseurl,token,showjobs):
   #resp = urllib2.urlopen(req)
   if req.status_code==200:
     data = json.loads(req.text)
+    dumpdata(data)
   else:
     print req.status_code
     sys.exit()
 
   for d in data['data']:
-    print '%-40.40s %36.36s %-20s %-20s %-20.20s'%(d['name'],d['id'],d['host'],d['group'],d['Status'])
+    print '%-40.40s %36.36s %-20s %-20s %-20.20s %6d'%(d['name'],d['id'],d['host'],d['group'],d['Status'],d['idle_time'])
     if showjobs and 'current_work' in d:
        for j in d['current_work'].keys():
           print "                       %-40.40s" % (j)
@@ -65,6 +66,29 @@ def cancel_jobs(baseurl,token,other,dryrun):
            header={'Authorization': 'OAuth '+token}
            req = requests.delete(url, headers=header)
 
+def suspend_jobs(baseurl,token,other,dryrun):
+  for status in ['in-progress','queued']:
+    data=get_jobs(baseurl,token,status)
+    for d in data:
+      i=d['info']
+      line='%-22.22s %-36.36s %-50.50s %-20.20s %-20s %-20s'%(i['startedtime'],d['id'],i['name'],i['clientgroups'],i['user'],d['state'])
+      if line.find(other)>=0:
+         print "Suspending... "+line
+         if dryrun is False:
+           url = baseurl+"/job/"+d['id']+'?suspend'
+           header={'Authorization': 'OAuth '+token}
+           req = requests.put(url, headers=header)
+
+def get_job(baseurl,token,job):
+    url = baseurl+"job/"+job
+    header={'Authorization': 'OAuth '+token}
+    req = requests.get(url, headers=header)
+    data = json.loads(req.text)
+    dumpdata(data)
+    d=data['data']
+    i=d['info']
+    line='%-22.22s %-36.36s %-50.50s %-20.20s %-20s %-20s'%(i['startedtime'],d['id'],i['name'],i['clientgroups'],i['user'],d['state'])
+    print line
 
 def main():
   global dump
@@ -76,6 +100,7 @@ def main():
   config.read('config.ini')
 
   action='jobs'
+  actions = ['clients', 'jobs', 'suspend', 'cancel', 'job' ]
 
   other = []
   for arg in sys.argv[1:]:
@@ -85,7 +110,7 @@ def main():
       showjobs=True
     elif arg == '-n':
       dryrun=True
-    elif arg == 'clients' or arg == 'jobs' or arg == 'cancel':
+    elif arg in actions:
       action=arg
     elif arg in config.sections():
       deploy=arg
@@ -105,6 +130,10 @@ def main():
     list_jobs(baseurl,token)
   elif action == 'cancel':
     cancel_jobs(baseurl,token,other[0],dryrun)
+  elif action == 'suspend':
+    suspend_jobs(baseurl,token,other[0],dryrun)
+  elif action == 'job':
+    get_job(baseurl,token,other[0])
 
 
 if __name__ == "__main__":
