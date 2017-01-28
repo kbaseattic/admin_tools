@@ -1,0 +1,15 @@
+[appdev]
+token=<put kbasetest token here>
+url=https://appdev.kbase.us/services/awe-api
+
+[ci]
+token=<put kbasetest token here>
+url=https://ci.kbase.us/services/awe-api
+
+[next]
+token=<put kbasetest token here>
+url=https://next.kbase.us/services/awe-api
+
+[prod]
+token=<put aweadmin token here>
+url=https://kbase.us/services/awe-api
