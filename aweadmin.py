@@ -11,6 +11,12 @@ from collections import defaultdict
 
 dump=False
 
+def usage():
+    print "usage: %s <prod|ci|appdev|next> <|clients|suspend|job> [job text] -d -n" % (sys.argv[0])
+    print "  -d dump json for some commands"
+    print "  -n no op for some commands (suspend|cancel)"
+
+
 def dumpdata(data):
   if dump:
     pp = pprint.PrettyPrinter(indent=4)
@@ -51,7 +57,7 @@ def list_jobs(baseurl,token):
     data=get_jobs(baseurl,token,status)
     for d in data:
       i=d['info']
-      print '%-22.22s %-36.36s %-50.50s %-20.20s %-20s %-20s'%(i['startedtime'],d['id'],i['name'],i['clientgroups'],i['user'],d['state'])
+      print '%-16.16s   %-16.16s   %-36.36s   %-50.50s %-20.20s %-20s %-20s'%(i['submittime'],i['startedtime'],d['id'],i['name'],i['clientgroups'],i['user'],d['state'])
 
 def cancel_jobs(baseurl,token,other,dryrun):
   for status in ['in-progress','queued']:
@@ -90,17 +96,41 @@ def get_job(baseurl,token,job):
     line='%-22.22s %-36.36s %-50.50s %-20.20s %-20s %-20s'%(i['startedtime'],d['id'],i['name'],i['clientgroups'],i['user'],d['state'])
     print line
 
+def create_cgroup(baseurl,token,group, dryrun):
+    url = baseurl+"cgroup/"+group
+    header={'Authorization': 'OAuth '+token}
+    req = requests.post(url, headers=header)
+    data = json.loads(req.text)
+    dumpdata(data)
+    d=data['data']
+    print d['token']
+
+def get_cgroups(baseurl,token):
+    url = baseurl+"cgroups"
+    header={'Authorization': 'OAuth '+token}
+    req = requests.get(url, headers=header)
+    data = json.loads(req.text)
+    dumpdata(data)
+    d=data['data']
+    for c in d:
+       print "%-15.15s %s\n" % (c['name'],c['token'])
+    #line='%-22.22s %-36.36s %-50.50s %-20.20s %-20s %-20s'%(i['startedtime'],d['id'],i['name'],i['clientgroups'],i['user'],d['state'])
+
 def main():
   global dump
   showjobs=False
   dryrun=False
   deploy=None
 
+  if len(sys.argv) == 1:
+     usage()
+     sys.exit(1)
+
   config = configparser.ConfigParser()
   config.read('config.ini')
 
   action='jobs'
-  actions = ['clients', 'jobs', 'suspend', 'cancel', 'job' ]
+  actions = ['clients', 'jobs', 'suspend', 'cancel', 'job', 'cgroups', 'create_cgroup' ]
 
   other = []
   for arg in sys.argv[1:]:
@@ -134,6 +164,10 @@ def main():
     suspend_jobs(baseurl,token,other[0],dryrun)
   elif action == 'job':
     get_job(baseurl,token,other[0])
+  elif action == 'cgroups':
+    get_cgroups(baseurl,token)
+  elif action == 'create_cgroup':
+    create_cgroup(baseurl,token,other[0],dryrun)
 
 
 if __name__ == "__main__":
