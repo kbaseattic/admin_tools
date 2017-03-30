@@ -43,7 +43,7 @@ def list_clients(baseurl,token,showjobs):
 
 
 def get_jobs(baseurl,token,status):
-  url = baseurl+"jobs?query&state="+status #in-progress"
+  url = baseurl+"jobs?query&limit=5000&state="+status #in-progress"
   header={'Authorization': 'OAuth '+token}
   req = requests.get(url, headers=header)
 
