@@ -24,7 +24,7 @@ def dumpdata(data):
   
 
 def list_clients(baseurl,token,showjobs):
-  url = baseurl+"client" #?query&state=in-progress"
+  url = baseurl+"client" #?query&limit=5000&state=in-progress"
   header={'Authorization': 'OAuth '+token}
   req = requests.get(url, headers=header)
   #resp = urllib2.urlopen(req)
