@@ -96,6 +96,45 @@ def get_job(baseurl,token,job):
     line='%-22.22s %-36.36s %-50.50s %-20.20s %-20s %-20s'%(i['startedtime'],d['id'],i['name'],i['clientgroups'],i['user'],d['state'])
     print line
 
+def move_queued_job(baseurl,token,other,dryrun):
+    job = other[0]
+    newclientgroup = other[1]
+    url = baseurl+"job/"+job
+    header={'Authorization': 'OAuth '+token}
+    req = requests.get(url, headers=header)
+    data = json.loads(req.text)
+    dumpdata(data)
+    if data['data']['state'] != 'queued':
+        print "job " + job + ' not in queued state, not moving to clientgroup ' + newclientgroup
+        return
+    if dryrun is False:
+        print "moving job " + job + ' to clientgroup ' + newclientgroup
+        url = baseurl + "/job/" + job + '?clientgroup=' + newclientgroup
+        header={'Authorization': 'OAuth '+token}
+#        print url
+        req = requests.put(url, headers=header)
+    else:
+        print "dryrun specified"
+        print "would move job " + job + ' to clientgroup ' + newclientgroup
+#    dumpdata(data)
+#    d=data['data']
+#    print d['token']
+
+def move_jobs_by_user(baseurl,token,other,dryrun):
+# find user's queued jobs, call move_job on each
+    user = other[0]
+    newclientgroup = other[1]
+    url = baseurl+"/job?query&limit=1000&state=queued&info.user="+user
+#    print url
+    header={'Authorization': 'OAuth '+token}
+    req = requests.get(url, headers=header)
+    data = json.loads(req.text)
+#    dumpdata(data)
+    d=data['data']
+    for job in d:
+      args = [ job['id'], newclientgroup ]
+      move_queued_job(baseurl,token,args,dryrun)
+
 def create_cgroup(baseurl,token,group, dryrun):
     url = baseurl+"cgroup/"+group
     header={'Authorization': 'OAuth '+token}
@@ -130,7 +169,7 @@ def main():
   config.read('config.ini')
 
   action='jobs'
-  actions = ['clients', 'jobs', 'suspend', 'cancel', 'job', 'cgroups', 'create_cgroup' ]
+  actions = ['clients', 'jobs', 'suspend', 'cancel', 'job', 'cgroups', 'create_cgroup', 'move_job', 'move_jobs_by_user' ]
 
   other = []
   for arg in sys.argv[1:]:
@@ -168,7 +207,10 @@ def main():
     get_cgroups(baseurl,token)
   elif action == 'create_cgroup':
     create_cgroup(baseurl,token,other[0],dryrun)
-
+  elif action == 'move_job':
+    move_queued_job(baseurl,token,other,dryrun)
+  elif action == 'move_jobs_by_user':
+    move_jobs_by_user(baseurl,token,other,dryrun)
 
 if __name__ == "__main__":
     main()

@@ -3,7 +3,7 @@ token=<put kbasetest token here>
 url=https://appdev.kbase.us/services/awe-api
 
 [ci]
-token=<put kbasetest token here>
+token=<put ciservices token here>
 url=https://ci.kbase.us/services/awe-api
 
 [next]
