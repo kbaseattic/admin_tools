@@ -43,7 +43,8 @@ def list_clients(baseurl,token,showjobs):
 
 
 def get_jobs(baseurl,token,status):
-  url = baseurl+"jobs?query&limit=5000&state="+status #in-progress"
+# need active here?
+  url = baseurl+"job?query&limit=5000&state="+status #in-progress"
   header={'Authorization': 'OAuth '+token}
   req = requests.get(url, headers=header)
 
@@ -85,6 +86,37 @@ def suspend_jobs(baseurl,token,other,dryrun):
            header={'Authorization': 'OAuth '+token}
            req = requests.put(url, headers=header)
 
+def suspend_job(baseurl,token,other,dryrun):
+    job = other[0]
+    url = baseurl+"job/"+job
+    header={'Authorization': 'OAuth '+token}
+    req = requests.get(url, headers=header)
+    data = json.loads(req.text)
+    dumpdata(data)
+    if dryrun is False:
+        print "Suspending... "+job
+        url = baseurl+"/job/"+job+'?suspend'
+        header={'Authorization': 'OAuth '+token}
+        req = requests.put(url, headers=header)
+    else:
+        print "dry run requested, would try to suspend "+job
+
+def suspend_jobs_by_user(baseurl,token,other,dryrun):
+# find user's jobs (in any state), call suspend_job on each
+  for state in ['in-progress','queued']:
+    user = other[0]
+    url = baseurl+"/job?query&limit=5000&info.user="+user+"&state="+state
+#    print url
+    header={'Authorization': 'OAuth '+token}
+    req = requests.get(url, headers=header)
+    data = json.loads(req.text)
+    dumpdata(data)
+    d=data['data']
+    for job in d:
+      args = [ job['id'] ]
+      print "calling suspend_jobs for " + state + ' job: ' + args[0]
+      suspend_job(baseurl,token,args,dryrun)
+
 def get_job(baseurl,token,job):
     url = baseurl+"job/"+job
     header={'Authorization': 'OAuth '+token}
@@ -124,7 +156,7 @@ def move_jobs_by_user(baseurl,token,other,dryrun):
 # find user's queued jobs, call move_job on each
     user = other[0]
     newclientgroup = other[1]
-    url = baseurl+"/job?query&limit=1000&state=queued&info.user="+user
+    url = baseurl+"/job?query&limit=5000&state=queued&info.user="+user
 #    print url
     header={'Authorization': 'OAuth '+token}
     req = requests.get(url, headers=header)
@@ -169,7 +201,7 @@ def main():
   config.read('config.ini')
 
   action='jobs'
-  actions = ['clients', 'jobs', 'suspend', 'cancel', 'job', 'cgroups', 'create_cgroup', 'move_job', 'move_jobs_by_user' ]
+  actions = ['clients', 'jobs', 'suspend', 'cancel', 'job', 'cgroups', 'create_cgroup', 'move_job', 'move_jobs_by_user', 'suspend_jobs_by_user' ]
 
   other = []
   for arg in sys.argv[1:]:
@@ -201,6 +233,8 @@ def main():
     cancel_jobs(baseurl,token,other[0],dryrun)
   elif action == 'suspend':
     suspend_jobs(baseurl,token,other[0],dryrun)
+  elif action == 'suspend_jobs_by_user':
+    suspend_jobs_by_user(baseurl,token,other,dryrun)
   elif action == 'job':
     get_job(baseurl,token,other[0])
   elif action == 'cgroups':
