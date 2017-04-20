@@ -53,6 +53,50 @@ def get_jobs(baseurl,token,status):
   dumpdata(data)
   return data['data']
 
+def get_queues(baseurl,token,status):
+# need active here?
+  url = baseurl+"queue"+status #in-progress"
+  header={'Authorization': 'OAuth '+token}
+  req = requests.get(url, headers=header)
+
+  data = json.loads(req.text)
+
+  dumpdata(data)
+  return data['data']
+
+def move_to_penalty_box(baseurl, token, user, count, data):
+  print("Would have moved user (%s) with (%s) jobs to the penalty box" % (user, count))
+  for d in data:
+    i= d['info']
+    id = d['id']
+    if i['user'] == user:
+      if i['clientgroups'] == "kb_upload_group":
+        args = [ id, "kb_upload_special" ]
+      else:
+        args = [ id, "special" ]
+      move_queued_job(baseurl,token,args,True)
+
+def cap_jobs(baseurl,token):
+  userCount = {}
+  for status in ['in-progress','queued']:
+    data=get_jobs(baseurl,token,status)
+    for d in data:
+      i=d['info']
+      if not userCount.has_key(i['user']):
+        userCount[i['user']] = 0
+      userCount[i['user']] = userCount[i['user']] + 1
+
+  for user in userCount:
+    if user[1] > 0:
+      move_to_penalty_box(baseurl, token, user, userCount[user], get_jobs(baseurl, token, "in-progress"))
+
+def list_jobs(baseurl,token):
+  for status in ['in-progress','queued']:
+    data=get_jobs(baseurl,token,status)
+    for d in data:
+      i=d['info']
+      print '%-16.16s   %-16.16s   %-36.36s   %-50.50s %-20.20s %-20s %-20s'%(i['submittime'],i['startedtime'],d['id'],i['name'],i['clientgroups'],i['user'],d['state'])
+
 def list_jobs(baseurl,token):
   for status in ['in-progress','queued']:
     data=get_jobs(baseurl,token,status)
@@ -201,7 +245,7 @@ def main():
   config.read('config.ini')
 
   action='jobs'
-  actions = ['clients', 'jobs', 'suspend', 'cancel', 'job', 'cgroups', 'create_cgroup', 'move_job', 'move_jobs_by_user', 'suspend_jobs_by_user' ]
+  actions = ['clients', 'jobs', 'cap_jobs', 'suspend', 'cancel', 'job', 'cgroups', 'create_cgroup', 'move_job', 'move_jobs_by_user', 'suspend_jobs_by_user' ]
 
   other = []
   for arg in sys.argv[1:]:
@@ -229,6 +273,10 @@ def main():
     list_clients(baseurl,token,showjobs)
   elif action == 'jobs':
     list_jobs(baseurl,token)
+  elif action == 'queues':
+    list_queues(baseurl,token)
+  elif action == 'cap_jobs':
+    cap_jobs(baseurl,token)
   elif action == 'cancel':
     cancel_jobs(baseurl,token,other[0],dryrun)
   elif action == 'suspend':
