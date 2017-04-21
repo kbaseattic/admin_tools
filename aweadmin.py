@@ -10,6 +10,7 @@ import configparser
 from collections import defaultdict
 
 dump=False
+cap_limit = 10
 
 def usage():
     print "usage: %s <prod|ci|appdev|next> <|clients|suspend|job> [job text] -d -n" % (sys.argv[0])
@@ -64,8 +65,7 @@ def get_queues(baseurl,token,status):
   dumpdata(data)
   return data['data']
 
-def move_to_penalty_box(baseurl, token, user, count, data):
-  print("Would have moved user (%s) with (%s) jobs to the penalty box" % (user, count))
+def move_to_penalty_box(baseurl, token, user, count, data, dryrun):
   for d in data:
     i= d['info']
     id = d['id']
@@ -74,9 +74,9 @@ def move_to_penalty_box(baseurl, token, user, count, data):
         args = [ id, "kb_upload_special" ]
       else:
         args = [ id, "special" ]
-      move_queued_job(baseurl,token,args,True)
+      move_queued_job(baseurl,token,args,dryrun)
 
-def cap_jobs(baseurl,token):
+def cap_jobs(baseurl,token, dryrun):
   userCount = {}
   for status in ['in-progress','queued']:
     data=get_jobs(baseurl,token,status)
@@ -87,8 +87,8 @@ def cap_jobs(baseurl,token):
       userCount[i['user']] = userCount[i['user']] + 1
 
   for user in userCount:
-    if user[1] > 0:
-      move_to_penalty_box(baseurl, token, user, userCount[user], get_jobs(baseurl, token, "in-progress"))
+    if userCount[user] > cap_limit:
+      move_to_penalty_box(baseurl, token, user, userCount[user], get_jobs(baseurl, token, "queued"), dryrun)
 
 def list_jobs(baseurl,token):
   for status in ['in-progress','queued']:
@@ -276,7 +276,7 @@ def main():
   elif action == 'queues':
     list_queues(baseurl,token)
   elif action == 'cap_jobs':
-    cap_jobs(baseurl,token)
+    cap_jobs(baseurl,token, dryrun)
   elif action == 'cancel':
     cancel_jobs(baseurl,token,other[0],dryrun)
   elif action == 'suspend':
