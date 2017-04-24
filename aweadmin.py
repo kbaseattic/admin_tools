@@ -10,12 +10,13 @@ import configparser
 from collections import defaultdict
 
 dump=False
-cap_limit = 10
+cap_limit = 100
 
 def usage():
     print "usage: %s <prod|ci|appdev|next> <|clients|suspend|job> [job text] -d -n" % (sys.argv[0])
     print "  -d dump json for some commands"
     print "  -n no op for some commands (suspend|cancel)"
+    print "  -l=[number] limit of jobs per user (for cap_jobs)"
 
 
 def dumpdata(data):
@@ -78,6 +79,7 @@ def move_to_penalty_box(baseurl, token, user, count, data, dryrun):
 
 def cap_jobs(baseurl,token, dryrun):
   userCount = {}
+  #print("limit: %s" % cap_limit)
   for status in ['in-progress','queued']:
     data=get_jobs(baseurl,token,status)
     for d in data:
@@ -233,6 +235,7 @@ def get_cgroups(baseurl,token):
 
 def main():
   global dump
+  global cap_limit
   showjobs=False
   dryrun=False
   deploy=None
@@ -255,6 +258,8 @@ def main():
       showjobs=True
     elif arg == '-n':
       dryrun=True
+    elif arg.split("=")[0] == '-l':
+      cap_limit = int(arg.split("=")[1])
     elif arg in actions:
       action=arg
     elif arg in config.sections():
