@@ -55,17 +55,6 @@ def get_jobs(baseurl,token,status):
   dumpdata(data)
   return data['data']
 
-def get_queues(baseurl,token,status):
-# need active here?
-  url = baseurl+"queue"+status #in-progress"
-  header={'Authorization': 'OAuth '+token}
-  req = requests.get(url, headers=header)
-
-  data = json.loads(req.text)
-
-  dumpdata(data)
-  return data['data']
-
 def move_to_penalty_box(baseurl, token, user, count, data, dryrun):
   for d in data:
     i= d['info']
@@ -91,13 +80,6 @@ def cap_jobs(baseurl,token, dryrun):
   for user in userCount:
     if userCount[user] > cap_limit:
       move_to_penalty_box(baseurl, token, user, userCount[user], get_jobs(baseurl, token, "queued"), dryrun)
-
-def list_jobs(baseurl,token):
-  for status in ['in-progress','queued']:
-    data=get_jobs(baseurl,token,status)
-    for d in data:
-      i=d['info']
-      print '%-16.16s   %-16.16s   %-36.36s   %-50.50s %-20.20s %-20s %-20s'%(i['submittime'],i['startedtime'],d['id'],i['name'],i['clientgroups'],i['user'],d['state'])
 
 def list_jobs(baseurl,token):
   for status in ['in-progress','queued']:
