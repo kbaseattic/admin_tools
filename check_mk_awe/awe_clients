@@ -1,0 +1,103 @@
+#!/usr/bin/python
+
+import urllib2, json
+import os
+import pprint
+import datetime
+import tempfile
+from collections import defaultdict
+from shutil import copyfile
+
+status_file = '/usr/share/nginx/html/aweclients_status'
+thresh=2*3600
+ignorebeyond=3600*24*5
+
+# for having too few workers for now
+idleWarning={'njs':5,
+        'refdata':2,
+        'kb_upload':3,
+        'bigcoreslong':1,
+        'njsberkeley':1,
+        'bigmemlong':5,
+        'special':1,
+        'kb_upload_special':1,
+        'bigmem':1}
+idleCritical={'njs':2,
+        'refdata':1,
+        'bigcoreslong':0,
+        'njsberkeley':0,
+        'bigmemlong':1,
+        'kb_upload':1,
+        'special':0,
+        'kb_upload_special':0,
+        'bigmem':0}
+totalWarning={'njs':8,
+        'refdata':3,
+        'kb_upload':1,
+        'bigcoreslong':1,
+        'njsberkeley':1,
+        'bigmemlong':5,
+        'special':1,
+        'kb_upload_special':1,
+        'bigmem':1}
+totalCritical={'njs':5,
+        'refdata':1,
+        'kb_upload':0,
+        'bigcoreslong':0,
+        'njsberkeley':0,
+        'bigmemlong':0,
+        'special':0,
+        'kb_upload_special':0,
+        'bigmem':0}
+groups = idleCritical.keys()
+
+# Read token
+f=open("/etc/check_mk/awetoken")
+token=f.readline().rstrip()
+f.close()
+
+# SLURPPPPP
+url = "https://kbase.us/services/awe-api/client" #?query&state=in-progress"
+req = urllib2.Request(url)
+req.add_header('Authorization','OAuth '+token)
+resp = urllib2.urlopen(req)
+
+data = json.loads(resp.read())
+
+pp = pprint.PrettyPrinter(indent=4)
+#pp.pprint(data['data'])
+
+# kkeller: i want to make this a bigger structure but for now this is ok
+activeIdleCount=defaultdict(int);
+activeBusyCount=defaultdict(int);
+for d in data['data']:
+  status=d['Status']
+  nstate=1
+  statetxt='WARN'
+  if status=='active-idle' or status=='active-busy':
+    nstate=0
+    statetxt='OK'
+  if status=='active-idle':
+    activeIdleCount[d['group']]+=1
+  if status=='active-busy':
+    activeBusyCount[d['group']]+=1
+  # for doing client checks server-side
+  print "%d AWE_client_%s_%s - %s - client id %s in group %s on host %s is in state %s" % (nstate,d['name'],d['group'],statetxt,d['id'],d['group'],d['host'],d['Status'])
+
+for group in groups:
+   idleCount=activeIdleCount[group]
+   busyCount=activeBusyCount[group]
+   if group not in idleWarning:
+     continue
+   nstate=0
+   statetxt='OK'
+   if (idleCount<idleCritical[group] or busyCount+idleCount<totalCritical[group]):
+     nstate=2
+     statetxt='CRITICAL'
+   elif (idleCount<idleWarning[group] or busyCount+idleCount<totalWarning[group]):
+     nstate=1
+     statetxt='WARNING'
+   print "%d AWE_clientgroup_%s %s=%d;%d;%d;0; %s - %s has %d active-idle workers (%d active-busy)"%(nstate,group,group,idleCount,idleWarning[group],idleCritical[group],statetxt,group,idleCount,busyCount)
+
+#print "%d Docker_memory count=%d;%d;%d;0;10 %s - %d instances: %s"%(statusmem,ctmem,0,5,statusmemtxt,ctmem,','.join(list))
+
