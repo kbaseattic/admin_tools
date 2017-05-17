@@ -3,6 +3,8 @@ PROGNAME=`basename $0`
 VERSION="Version 1.0,"
 AUTHOR="Guillaume Coré <g@fridim.org>"
 
+# Modify the username and password below for your mysqld.
+
 ST_OK=0
 ST_WR=1
 ST_CR=2
@@ -88,8 +90,8 @@ while getopts “hvu:p:H:P:w:c:f:0” OPTION; do
   esac
 done
 
-mysqluser=root
-password=***REMOVED***
+mysqluser=rootuserhere
+password=rootpasswordhere
 
 if [ -z "$warn" ]; then
   warn=$crit
