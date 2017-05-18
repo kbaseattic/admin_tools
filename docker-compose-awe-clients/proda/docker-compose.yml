@@ -1,0 +1,111 @@
+ftpapi:
+# this is only on dtn
+  image: kb-ftp-api:appdev
+  environment:
+   - DEPLOY=prod
+  ports:
+   - 3003:3000
+  volumes:
+   - /opt/kb-ftp-api/tokens:/src/tokens
+   - /data/bulk/:/data/bulk
+njsaweworker:
+  image: kbase/kbase_base:prod
+#  entrypoint: /config/config/entrypoint.sh
+  entrypoint: ['/bin/bash','/config/config/entrypoint.aweclient.sh']
+# args: clientgroup, vmhostname
+  command: ['njs','vmhostname']
+  volumes:
+   - .:/config
+   - /dev/log:/dev/log
+   - /var/run/docker.sock:/var/run/docker.sock 
+   - /mnt/awe:/mnt/awe
+# names *must* match for awe container to be able to create
+# njswrapper containers
+   - /kb/data:/kb/data:ro
+   - ./config/awe-client.cfg:/kb/deployment/awe-client.cfg:ro
+bigmemlongaweworker:
+  image: kbase/kbase_base:prod
+#  entrypoint: /config/config/entrypoint.sh
+  entrypoint: ['/bin/bash','/config/config/entrypoint.aweclient.sh']
+  command: ['bigmemlong','vmhostname']
+  volumes:
+   - .:/config
+   - /dev/log:/dev/log
+   - /var/run/docker.sock:/var/run/docker.sock 
+   - /mnt/awe:/mnt/awe
+# names *must* match for awe container to be able to create
+# njswrapper containers
+   - /kb/data:/kb/data:ro
+   - ./config/awe-client.cfg:/kb/deployment/awe-client.cfg:ro
+bigmemaweworker:
+  image: kbase/kbase_base:prod
+#  entrypoint: /config/config/entrypoint.sh
+  entrypoint: ['/bin/bash','/config/config/entrypoint.aweclient.sh']
+  command: ['bigmem','vmhostname']
+  volumes:
+   - .:/config
+   - /dev/log:/dev/log
+   - /var/run/docker.sock:/var/run/docker.sock 
+   - /mnt/awe:/mnt/awe
+# names *must* match for awe container to be able to create
+# njswrapper containers
+   - /kb/data:/kb/data:ro
+   - ./config/awe-client.cfg:/kb/deployment/awe-client.cfg:ro
+refdataaweworker:
+  image: kbase/kbase_base:prod
+#  entrypoint: /config/config/entrypoint.sh
+  entrypoint: ['/bin/bash','/config/config/entrypoint.aweclient.sh']
+  command: ['refdata','vmhostname']
+  volumes:
+   - .:/config
+   - /dev/log:/dev/log
+   - /var/run/docker.sock:/var/run/docker.sock 
+   - /mnt/awe:/mnt/awe
+# names *must* match for awe container to be able to create
+# njswrapper containers
+   - /kb/data:/kb/data:ro
+   - ./config/awe-client.cfg:/kb/deployment/awe-client.cfg:ro
+specialaweworker:
+  image: kbase/kbase_base:prod
+#  entrypoint: /config/config/entrypoint.sh
+  entrypoint: ['/bin/bash','/config/config/entrypoint.aweclient.sh']
+  command: ['special','vmhostname']
+  volumes:
+   - .:/config
+   - /dev/log:/dev/log
+   - /var/run/docker.sock:/var/run/docker.sock 
+   - /mnt/awe:/mnt/awe
+# names *must* match for awe container to be able to create
+# njswrapper containers
+   - /kb/data:/kb/data:ro
+   - ./config/awe-client.cfg:/kb/deployment/awe-client.cfg:ro
+kbuploadaweworker:
+  image: kbase/kbase_base:prod
+#  entrypoint: /config/config/entrypoint.sh
+  entrypoint: ['/bin/bash','/config/config/entrypoint.aweclient.sh']
+  command: ['kb_upload','vmhostname']
+  volumes:
+   - .:/config
+   - /dev/log:/dev/log
+   - /var/run/docker.sock:/var/run/docker.sock 
+   - /mnt/awe:/mnt/awe
+   - /dtn/disk0:/dtn/disk0
+# names *must* match for awe container to be able to create
+# njswrapper containers
+   - /kb/data:/kb/data:ro
+   - ./config/awe-client.cfg:/kb/deployment/awe-client.cfg:ro
+kbuploadspecialaweworker:
+  image: kbase/kbase_base:prod
+#  entrypoint: /config/config/entrypoint.sh
+  entrypoint: ['/bin/bash','/config/config/entrypoint.aweclient.sh']
+  command: ['kb_upload_special','vmhostname']
+  volumes:
+   - .:/config
+   - /dev/log:/dev/log
+   - /var/run/docker.sock:/var/run/docker.sock 
+   - /mnt/awe:/mnt/awe
+   - /dtn/disk0:/dtn/disk0
+# names *must* match for awe container to be able to create
+# njswrapper containers
+   - /kb/data:/kb/data:ro
+   - ./config/awe-client.cfg:/kb/deployment/awe-client.cfg:ro

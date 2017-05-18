@@ -1,0 +1,161 @@
+#!/usr/bin/python
+
+import urllib2, json
+import os
+import pprint
+import datetime
+
+thresh=2*3600
+ignorebeyond=3600*24*5
+
+# Read token
+f=open("/etc/check_mk/awetoken")
+token=f.readline().rstrip()
+f.close()
+
+cts={
+    'suspend':0,
+    'in-progress':0,
+    'completed':0,
+    'failing':0,
+    'deleted':0,
+    'queued':0,
+    'queuedTime':0,
+    'inprogressTime':0
+    }
+
+warning={
+        'suspend':4000,
+        'in-progress':20,
+        'completed':10000,
+        'failing':20,
+        'deleted':10000,
+        'queued':100,
+        'queuedTime':10*60,
+        'inprogressTime':60*60
+        }
+
+critical={
+        'suspend':5000,
+        'in-progress':200,
+        'completed':20000,
+        'failing':40,
+        'deleted':20000,
+        'queued':200,
+        'queuedTime':30*60,
+        'inprogressTime':2*60*60
+}
+
+baseUrl = "https://kbase.us/services/awe-api/job?query&limit=5000"
+#?query&state=in-progress"
+
+allData = dict()
+
+# Do a separate query for each state
+for state in ['in-progress','queued','suspend','deleted']:
+    url= baseUrl + '&state=' + state
+
+    req = urllib2.Request(url)
+    req.add_header('Authorization','OAuth '+token)
+    resp = urllib2.urlopen(req)
+    allData[state] = json.loads(resp.read())
+
+pp = pprint.PrettyPrinter(indent=4)
+#pp.pprint(allData['in-progress']['data'])
+
+statustxt=dict()
+cts['failing']=0
+notCompletedDeletedJobList=[]
+suspendList=[]
+longInprogressJobList=[]
+longqueuedJobList=[]
+
+# Walk the data
+
+for d in allData['in-progress']['data']+allData['queued']['data']+allData['suspend']['data']+allData['deleted']['data']:
+   info=d['info']
+   now=datetime.datetime.now()
+   # Let's not fail on a bad time stamp
+   try:
+     submitTime=datetime.datetime.strptime(info['submittime'].split('.')[0].split('Z')[0], "%Y-%m-%dT%H:%M:%S")
+     startedTime=datetime.datetime.strptime(info['startedtime'].split('.')[0].split('Z')[0], "%Y-%m-%dT%H:%M:%S")
+   except:
+     #print info['startedtime']
+     continue
+   startedTimeSeconds=int((now-startedTime).days * 86400 + (now-startedTime).seconds)
+   submitTimeSeconds=int((now-submitTime).days * 86400 + (now-submitTime).seconds)
+#   if seconds>ignorebeyond:
+#     continue
+   # Truncate the name some
+   name=info['name'].replace('App wrapper for method ','')
+   state=d['state']
+   if state in cts:
+     cts[state]=cts[state]+1
+   else:
+     cts[state]=0
+     statustxt[state]=state
+   if d['state'] == 'suspend':
+# to do: make this a dict, track counts by job, user
+     suspendList.append(d)
+   if d['state'] == 'queued':
+     # look at info['submittime']
+     cts['queuedTime']=max(cts['queuedTime'],submitTimeSeconds)
+     if (cts['queuedTime'] > warning['queuedTime']):
+       longqueuedJobList.append( "%s(%s, cgroup %s, %d sec)"%(name,info['user'],info['clientgroups'],submitTimeSeconds))
+   if d['state'] == 'in-progress':
+     if (cts['inprogressTime'] < startedTimeSeconds):
+       cts['inprogressTime']=max(cts['inprogressTime'],startedTimeSeconds)
+       longInprogressJobList.append( "%s(%s,%d)"%(name,info['user'],startedTimeSeconds))
+   if startedTimeSeconds>thresh:
+     continue
+   if d['state']=='completed' or d['state']=='deleted':
+     continue
+   if d['state'] != 'in-progress' and d['lastfailed']!='':
+     cts['failing']=cts['failing']+1
+     notCompletedDeletedJobList.append( "%s(%s,%d)"%(name,info['user'],d['resumed']))
+   #pp.pprint(d)
+
+#pp.pprint(cts)
+for state in cts:
+  statustxt[state]="%s - %d jobs: "%(state,cts[state])
+  if ( state == 'queuedTime' or state == 'inprogressTime'):
+    statustxt[state]="%s - max %d minutes, longest 10 jobs: "%(state,cts[state]/60)
+statustxt['failing']=statustxt['failing']+', '.join(notCompletedDeletedJobList)
+statustxt['inprogressTime'] = statustxt['inprogressTime'] + ', ' . join(longInprogressJobList[-10:])
+statustxt['queuedTime'] = statustxt['queuedTime'] + ', ' . join(longqueuedJobList[-10:])
+
+
+suspendDict=dict()
+for job in suspendList:
+  info=job['info']
+  name=info['name'].replace('App wrapper for method ','')
+   #notCompletedDeletedJobList.append( "%s(%s,%d)"%(name,info['user'],d['resumed']))
+  if name not in suspendDict:
+     suspendDict[name]=dict()
+  if info['user'] not in suspendDict[name]:
+     suspendDict[name][info['user']] = 0
+  suspendDict[name][info['user']] += 1
+
+suspendTxt=''
+for jobtype in suspendDict:
+  suspendTxt = suspendTxt + ' ' + jobtype + ':'
+  for user in suspendDict[jobtype]:
+    suspendTxt = suspendTxt + user + ',' + str(suspendDict[jobtype][user]) + ';'
+
+#statustxt['suspend']=statustxt['suspend']+', '.join(suspendList)
+statustxt['suspend']=statustxt['suspend']+suspendTxt
+
+for state in cts:
+  nstate=0
+  statetxt='OK'
+  if (cts[state]>critical[state]):
+    nstate=2
+    statetxt='CRITICAL'
+  elif (cts[state]>warning[state]):
+    nstate=1
+    statetxt='WARN'
+
+# ideally should have the state's thresholds in the performance data
+  print "%d AWE_%s %s=%d;%d;%d %s - %s"%(nstate,state,state,cts[state],warning[state],critical[state],statetxt,statustxt[state])
+#  print "%d AWE_%s %s=%d %s - %s"%(nstate,state,state,cts[state],statetxt,statustxt[state])
+#  print "%d AWE_%s %s=%d;%d;%d;0; %s - %s"%(nstate,state,state,cts[state],100,200,statetxt,statustxt[state])
