@@ -90,8 +90,9 @@ while getopts “hvu:p:H:P:w:c:f:0” OPTION; do
   esac
 done
 
-mysqluser=rootuserhere
-password=rootpasswordhere
+# very crude but works as long as only one client section and no commented user or password lines
+mysqluser=$(grep user /root/.my.cnf|cut -f2 -d '=')
+password=$(grep password /root/.my.cnf|cut -f2 -d '=')
 
 if [ -z "$warn" ]; then
   warn=$crit
