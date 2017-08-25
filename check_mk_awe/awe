@@ -32,7 +32,7 @@ warning={
         'deleted':10000,
         'queued':100,
         'queuedTime':10*60,
-        'inprogressTime':60*60
+        'inprogressTime':12*60*60
         }
 
 critical={
@@ -43,7 +43,7 @@ critical={
         'deleted':20000,
         'queued':200,
         'queuedTime':30*60,
-        'inprogressTime':2*60*60
+        'inprogressTime':24*60*60
 }
 
 baseUrl = "https://kbase.us/services/awe-api/job?query&limit=5000"
@@ -103,8 +103,8 @@ for d in allData['in-progress']['data']+allData['queued']['data']+allData['suspe
      if (cts['queuedTime'] > warning['queuedTime']):
        longqueuedJobList.append( "%s(%s, cgroup %s, %d sec)"%(name,info['user'],info['clientgroups'],submitTimeSeconds))
    if d['state'] == 'in-progress':
-     if (cts['inprogressTime'] < startedTimeSeconds):
-       cts['inprogressTime']=max(cts['inprogressTime'],startedTimeSeconds)
+     cts['inprogressTime']=max(cts['inprogressTime'],startedTimeSeconds)
+     if (cts['inprogressTime'] > warning['inprogressTime']):
        longInprogressJobList.append( "%s(%s,%d)"%(name,info['user'],startedTimeSeconds))
    if startedTimeSeconds>thresh:
      continue
