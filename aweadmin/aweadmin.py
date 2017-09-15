@@ -38,10 +38,11 @@ def list_clients(baseurl,token,showjobs):
     sys.exit()
 
   for d in data['data']:
-    print '%-40.40s %36.36s %-20s %-20s %-20.20s %6d'%(d['name'],d['id'],d['host'],d['group'],d['Status'],d['idle_time'])
+    line ='%-40.60s %36.36s %-20s %-20s %-20.20s %6d'%(d['name'],d['id'],d['host'],d['group'],d['Status'],d['idle_time'])
     if showjobs and 'current_work' in d:
        for j in d['current_work'].keys():
-          print "                       %-40.40s" % (j)
+          line = line + "   %-40.40s" % (j)
+    print line
 
 def resume_all_clients(baseurl,token,dryrun):
     url = baseurl+'/client?resumeall'
@@ -57,6 +58,20 @@ def resume_all_clients(baseurl,token,dryrun):
 #    line='%-22.22s %-36.36s %-50.50s %-20.20s %-20s %-20s'%(i['startedtime'],d['id'],i['name'],i['clientgroups'],i['user'],d['state'])
     print d
 
+def suspend_client(baseurl,token,other,dryrun):
+    client = other
+    url = baseurl+"client/"+client
+    header={'Authorization': 'OAuth '+token}
+    req = requests.get(url, headers=header)
+    data = json.loads(req.text)
+    dumpdata(data)
+    if dryrun is False:
+        print "Suspending client... "+client
+        url = baseurl+"/client/"+client+'?suspend'
+        header={'Authorization': 'OAuth '+token}
+        req = requests.put(url, headers=header)
+    else:
+        print "dry run requested, would try to suspend "+client
 
 def get_jobs(baseurl,token,status):
 # need active here?
@@ -244,7 +259,7 @@ def main():
   config.read('config.ini')
 
   action='jobs'
-  actions = ['clients', 'jobs', 'cap_jobs', 'suspend', 'cancel', 'job', 'cgroups', 'create_cgroup', 'resume_all_clients', 'move_job', 'move_jobs_by_user', 'suspend_jobs_by_user' ]
+  actions = ['clients', 'jobs', 'cap_jobs', 'suspend', 'cancel', 'job', 'cgroups', 'create_cgroup', 'suspend_client', 'resume_all_clients', 'move_job', 'move_jobs_by_user', 'suspend_jobs_by_user' ]
 
   other = []
   for arg in sys.argv[1:]:
@@ -288,6 +303,8 @@ def main():
     get_job(baseurl,token,other[0])
   elif action == 'cgroups':
     get_cgroups(baseurl,token)
+  elif action == 'suspend_client':
+    suspend_client(baseurl,token,other[0],dryrun)
   elif action == 'resume_all_clients':
     resume_all_clients(baseurl,token,dryrun)
   elif action == 'create_cgroup':
