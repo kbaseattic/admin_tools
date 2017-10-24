@@ -55,6 +55,22 @@ def get_jobs(baseurl,token,status):
   dumpdata(data)
   return data['data']
 
+def jobinfo(baseurl,token,jobid):
+# need active here?
+  url = baseurl+"/work/"+jobid+"_0_0" #in-progress"
+  header={'Authorization': 'OAuth '+token}
+  req = requests.get(url, headers=header)
+
+  data = json.loads(req.text)
+
+  dumpdata(data)
+  d=data['data']
+  i=d['info']
+  client=d['client']
+  line='%s %-22.22s %-50.50s %-20.20s %-20s %-20s'%(client, i['startedtime'],i['name'],i['clientgroups'],i['user'],d['state'])
+  print line
+
+
 def move_to_penalty_box(baseurl, token, user, count, data, dryrun):
   for d in data:
     i= d['info']
@@ -230,7 +246,9 @@ def main():
   config.read('config.ini')
 
   action='jobs'
-  actions = ['clients', 'jobs', 'cap_jobs', 'suspend', 'cancel', 'job', 'cgroups', 'create_cgroup', 'move_job', 'move_jobs_by_user', 'suspend_jobs_by_user' ]
+  actions = ['clients', 'jobs', 'cap_jobs', 'suspend', 'cancel', 'job',
+             'cgroups', 'create_cgroup', 'move_job', 'move_jobs_by_user',
+             'suspend_jobs_by_user', "jobinfo" ]
 
   other = []
   for arg in sys.argv[1:]:
@@ -272,6 +290,8 @@ def main():
     suspend_jobs_by_user(baseurl,token,other,dryrun)
   elif action == 'job':
     get_job(baseurl,token,other[0])
+  elif action == 'jobinfo':
+    jobinfo(baseurl,token,other[0])
   elif action == 'cgroups':
     get_cgroups(baseurl,token)
   elif action == 'create_cgroup':
