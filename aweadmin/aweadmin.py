@@ -43,6 +43,20 @@ def list_clients(baseurl,token,showjobs):
        for j in d['current_work'].keys():
           print "                       %-40.40s" % (j)
 
+def resume_all_clients(baseurl,token,dryrun):
+    url = baseurl+'/client?resumeall'
+    header={'Authorization': 'OAuth '+token}
+    if dryrun is True:
+        print url
+        return
+    req = requests.put(url, headers=header)
+    data = json.loads(req.text)
+    dumpdata(data)
+    d=data['data']
+#    i=d['info']
+#    line='%-22.22s %-36.36s %-50.50s %-20.20s %-20s %-20s'%(i['startedtime'],d['id'],i['name'],i['clientgroups'],i['user'],d['state'])
+    print d
+
 
 def get_jobs(baseurl,token,status):
 # need active here?
@@ -64,12 +78,16 @@ def jobinfo(baseurl,token,jobid):
   data = json.loads(req.text)
 
   dumpdata(data)
-  d=data['data']
-  i=d['info']
-  client=d['client']
-  line='%s %-22.22s %-50.50s %-20.20s %-20s %-20s'%(client, i['startedtime'],i['name'],i['clientgroups'],i['user'],d['state'])
+  d1=data['data']
+  i=d1['info']
+  client=d1['client']
+  url = baseurl+"client/"+client #?query&state=in-progress"
+  req = requests.get(url, headers=header)
+  data = json.loads(req.text)
+  hostname = data['data']['name']
+  dumpdata(data)#resp = urllib2.urlopen(req)
+  line='%s %s %-22.22s %-50.50s %-20.20s %-20s %-20s'%(client, hostname, i['startedtime'],i['name'],i['clientgroups'],i['user'],d1['state'])
   print line
-
 
 def move_to_penalty_box(baseurl, token, user, count, data, dryrun):
   for d in data:
@@ -248,7 +266,7 @@ def main():
   action='jobs'
   actions = ['clients', 'jobs', 'cap_jobs', 'suspend', 'cancel', 'job',
              'cgroups', 'create_cgroup', 'move_job', 'move_jobs_by_user',
-             'suspend_jobs_by_user', "jobinfo" ]
+             'suspend_jobs_by_user', "jobinfo", "resume_all_clients" ]
 
   other = []
   for arg in sys.argv[1:]:
@@ -294,6 +312,8 @@ def main():
     jobinfo(baseurl,token,other[0])
   elif action == 'cgroups':
     get_cgroups(baseurl,token)
+  elif action == 'resume_all_clients':
+    resume_all_clients(baseurl,token,dryrun)
   elif action == 'create_cgroup':
     create_cgroup(baseurl,token,other[0],dryrun)
   elif action == 'move_job':
