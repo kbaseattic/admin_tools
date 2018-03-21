@@ -1,0 +1,12 @@
+version: "3.1"
+services:
+#docker run --name nginxtmp -v /home/kbproda/maintenance/nginx/nginx.conf:/etc/nginx/nginx.conf:ro -v /home/kbproda/maintenance/nginx/ssl:/etc/nginx/ssl -p 80:80 -p 443:443 --rm -d nginx
+  nginx:
+    image: nginx
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ./nginx/html:/usr/share/nginx/html:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
