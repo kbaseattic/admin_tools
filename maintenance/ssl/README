@@ -1,0 +1,5 @@
+Place certificates here
+
+server.crt  server.key  server.key.insecure
+
+(or modify nginx.conf to point to correct certs)
