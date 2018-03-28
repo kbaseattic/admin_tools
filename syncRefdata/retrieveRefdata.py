@@ -9,6 +9,19 @@ import rfc822
 
 #requests.packages.urllib3.disable_warnings()
 
+# suggested by https://bobrochel.blogspot.co.nz/2010/11/bad-servers-chunked-encoding-and.html
+# to work around IncompleteRead issue
+import httplib
+def patch_http_response_read(func):
+    def inner(*args):
+        try:
+            return func(*args)
+        except httplib.IncompleteRead, e:
+            return e.partial
+
+    return inner
+httplib.HTTPResponse.read = patch_http_response_read(httplib.HTTPResponse.read)
+
 # called recursively for each dir found at remote
 def retrieve_dir(url,path):
     print 'retrieving directory ' + url + ' to path ' + path
@@ -23,6 +36,7 @@ def retrieve_dir(url,path):
     
     remotereq=requests.get(url)
     remotels=remotereq.json()
+
     for remoteentry in remotels:
 #        print remoteentry
         if remoteentry['type'] == 'directory':
@@ -62,6 +76,16 @@ def mirror_refdata(refdataTopdir='https://kbase.us/refdata/', refdataDiskdir='re
         for version in versions:
             versiondir = moduledir + '/' + version['name']
             versionDiskPath= refdataDiskdir+'/'+module['name']+'/'+version['name']
+
+# for retrieving dot files (requires building .dotfile manually at the source)
+            remotedotfilesls=[]
+            remotedotfilesreq=requests.get(versiondir+'/.dotfiles')
+# for now just get the .dotfiles file
+            try:
+                remotedotfilesls=remotedotfilesreq.json()
+            except:
+                pass
+
             readyHeadReq = requests.head(versiondir+'/__READY__')
 	    print readyHeadReq.headers['Last-Modified']
 	    mirrorDatestamp=rfc822.mktime_tz(rfc822.parsedate_tz(readyHeadReq.headers['Last-Modified']))
@@ -82,6 +106,13 @@ def mirror_refdata(refdataTopdir='https://kbase.us/refdata/', refdataDiskdir='re
                 else:
 	            raise
             retrieve_dir(versiondir,versionDiskPath)
+
+# hacky support for dot files
+            for dotfile in remotedotfilesls:
+# for now only support for dot dirs
+# (need to break out the file retrieval into a separate method to do files here)
+                retrieve_dir(versiondir+'/'+dotfile['name'],versionDiskPath+'/'+dotfile['name'])
+
             # if this works, retrieve __READY__ file
 	    print 'retrieve ' + versiondir + ' succeeded, retrieving __READY__ file'
             filereq=requests.get(versiondir + '/__READY__', timeout=5, stream=True)
